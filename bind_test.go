@@ -8,8 +8,8 @@ import (
 
 	"reflect"
 
-	"gopkg.in/andviro/noodle.v2"
-	"gopkg.in/andviro/noodle.v2/bind"
+	"github.com/go-noodle/noodle"
+	"github.com/go-noodle/bind"
 )
 
 type bindTestCase struct {
