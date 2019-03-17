@@ -1,0 +1,20 @@
+---
+payload: alskdjasdklj
+data: &bind_test.testStruct{A:0, B:""}
+error: alskdjasdklj doesn't exist in bind_test.testStruct
+---
+payload: a=1&b=Ololo
+data: &bind_test.testStruct{A:1, B:"Ololo"}
+error: <nil>
+---
+payload: {"a": 1, "b": "Ololo"}
+data: &bind_test.testStruct{A:1, B:"Ololo"}
+error: <nil>
+---
+payload: {}
+data: &bind_test.testStruct{A:0, B:""}
+error: <nil>
+---
+payload: 
+data: &bind_test.testStruct{A:0, B:""}
+error: EOF

@@ -1,12 +1,9 @@
 package bind
 
 import (
-	"encoding/json"
-	"io"
 	"net/http"
 	"reflect"
 
-	"github.com/ajg/form"
 	"github.com/go-noodle/noodle"
 )
 
@@ -20,47 +17,31 @@ type decoderResult struct {
 }
 
 // Constructor is a generic function modelled after json.NewDecoder
-type Constructor func(io.Reader) Decoder
+type Constructor func(r *http.Request) Decoder
 
 // Decoder populates target object with data from request body
 type Decoder interface {
 	Decode(interface{}) error
 }
 
-func jsonC(r io.Reader) Decoder {
-	return json.NewDecoder(r)
-}
-
-func formC(r io.Reader) Decoder {
-	return form.NewDecoder(r)
-}
-
 // Generic is a middleware factory for request binding.
 // Accepts Constructor and returns binder for model
-func Generic(dc Constructor) func(interface{}) noodle.Middleware {
-	return func(model interface{}) noodle.Middleware {
-		typeModel := reflect.TypeOf(model)
-		if typeModel.Kind() == reflect.Ptr {
-			panic("bind to pointer is not allowed")
-		}
-		return func(next http.HandlerFunc) http.HandlerFunc {
-			return func(w http.ResponseWriter, r *http.Request) {
-				var res decoderResult
-				res.val = reflect.New(typeModel).Interface()
-				res.err = dc(r.Body).Decode(res.val)
-				next(w, noodle.WithValue(r, bindKey, res))
+func Generic(model interface{}, dc Constructor) noodle.Middleware {
+	typeModel := reflect.TypeOf(model)
+	if typeModel.Kind() == reflect.Ptr {
+		typeModel = typeModel.Elem()
+	}
+	return func(next http.HandlerFunc) http.HandlerFunc {
+		return func(w http.ResponseWriter, r *http.Request) {
+			val := reflect.New(typeModel).Interface()
+			err := dc(r).Decode(val)
+			if err != nil {
+				err = DecodeError{err}
 			}
+			next(w, noodle.WithValue(r, bindKey, decoderResult{val, err}))
 		}
 	}
 }
-
-// JSON constructs middleware that parses request body according to provided model
-// and injects parsed object into context
-var JSON = Generic(jsonC)
-
-// Form constructs middleware that parses request form according to provided model
-// and injects parsed object into context
-var Form = Generic(formC)
 
 // GetData extracts data parsed from upstream Bind operation, discarding
 // decoding error.  Deprecated in favor of Get() function.

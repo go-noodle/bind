@@ -2,62 +2,77 @@ package bind_test
 
 import (
 	"bytes"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
-	"reflect"
+	"github.com/andviro/goldie"
 
-	"github.com/go-noodle/noodle"
 	"github.com/go-noodle/bind"
+	"github.com/go-noodle/noodle"
 )
 
 type bindTestCase struct {
 	Payload    string
-	Value      interface{}
-	Error      bool
-	Middleware func(interface{}) noodle.Middleware
+	Middleware noodle.Middleware
 }
 
 type testStruct struct {
-	A int    `json:"a" form:"a"`
-	B string `json:"b" form:"b"`
+	A int    `json:"a" form:"a" schema:"a"`
+	B string `json:"b" form:"b" schema:"b"`
 }
 
-var bindTestCases = []bindTestCase{
-	{"alskdjasdklj", testStruct{}, true, bind.Form},
-	{"a=1&b=Ololo", testStruct{1, "Ololo"}, false, bind.Form},
-	{`{"a": 1, "b": "Ololo"}`, testStruct{1, "Ololo"}, false, bind.JSON},
-	{"{}", testStruct{}, false, bind.JSON},
-	{"", testStruct{}, true, bind.JSON},
+var bindBodyTestCases = []bindTestCase{
+	{"alskdjasdklj", bind.Form(testStruct{})},
+	{"a=1&b=Ololo", bind.Form(testStruct{})},
+	{`{"a": 1, "b": "Ololo"}`, bind.JSON(testStruct{})},
+	{"{}", bind.JSON(testStruct{})},
+	{"", bind.JSON(testStruct{})},
 }
 
-func TestBind(t *testing.T) {
-	for _, tc := range bindTestCases {
+func TestBind_Body(t *testing.T) {
+	buf := new(bytes.Buffer)
+	for _, tc := range bindBodyTestCases {
 		w := httptest.NewRecorder()
-		r, _ := http.NewRequest("POST", "", bytes.NewBuffer([]byte(tc.Payload)))
-		n := tc.Middleware(tc.Value)(func(w http.ResponseWriter, r *http.Request) {
+		r, err := http.NewRequest("POST", "", bytes.NewBuffer([]byte(tc.Payload)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		fmt.Fprintf(buf, "---\n")
+		fmt.Fprintf(buf, "payload: %s\n", tc.Payload)
+		n := tc.Middleware(func(w http.ResponseWriter, r *http.Request) {
 			data, err := bind.Get(r)
-			if err != nil && !tc.Error {
-				t.Errorf("unexpected error: %+v", err)
-			}
-			if !reflect.DeepEqual(reflect.ValueOf(data).Elem().Interface(), tc.Value) {
-				t.Errorf("expected %+v, got %+v", tc.Value, data)
-			}
+			fmt.Fprintf(buf, "data: %#v\n", data)
+			fmt.Fprintf(buf, "error: %+v\n", err)
 		})
 		n(w, r)
 	}
+	goldie.Assert(t, "bind-body", buf.Bytes())
 }
 
-func TestBindPanicsOnPointer(t *testing.T) {
-	defer func() {
-		msg, ok := recover().(string)
-		if !ok {
-			t.Fatalf("should have thrown a string")
+var bindQueryTestCases = []bindTestCase{
+	{"a=1&b=Ololo", bind.Query(testStruct{})},
+	{"c=1&a=2", bind.Query(testStruct{})},
+	{"b=1&a=qwe", bind.Query(testStruct{})},
+}
+
+func TestBind_Query(t *testing.T) {
+	buf := new(bytes.Buffer)
+	for _, tc := range bindQueryTestCases {
+		w := httptest.NewRecorder()
+		r, err := http.NewRequest("GET", "?"+tc.Payload, nil)
+		if err != nil {
+			t.Fatal(err)
 		}
-		if msg != "bind to pointer is not allowed" {
-			t.Error("invalid error value")
-		}
-	}()
-	_ = bind.JSON(&bindTestCase{})
+		fmt.Fprintf(buf, "---\n")
+		fmt.Fprintf(buf, "payload: %s\n", tc.Payload)
+		n := tc.Middleware(func(w http.ResponseWriter, r *http.Request) {
+			data, err := bind.Get(r)
+			fmt.Fprintf(buf, "data: %#v\n", data)
+			fmt.Fprintf(buf, "error: %+v\n", err)
+		})
+		n(w, r)
+	}
+	goldie.Assert(t, "bind-query", buf.Bytes())
 }

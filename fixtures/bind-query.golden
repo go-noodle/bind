@@ -1,0 +1,12 @@
+---
+payload: a=1&b=Ololo
+data: &bind_test.testStruct{A:1, B:"Ololo"}
+error: <nil>
+---
+payload: c=1&a=2
+data: &bind_test.testStruct{A:2, B:""}
+error: schema: invalid path "c"
+---
+payload: b=1&a=qwe
+data: &bind_test.testStruct{A:0, B:"1"}
+error: schema: error converting value for "a"
