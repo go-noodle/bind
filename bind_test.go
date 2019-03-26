@@ -2,6 +2,7 @@ package bind_test
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -75,4 +76,38 @@ func TestBind_Query(t *testing.T) {
 		n(w, r)
 	}
 	goldie.Assert(t, "bind-query", buf.Bytes())
+}
+
+type testValidator struct {
+	A int `json:"a"`
+}
+
+func (t *testValidator) Validate() error {
+	if t.A == 0 {
+		return errors.New("invalid value")
+	}
+	return nil
+}
+
+func TestBind_Validate(t *testing.T) {
+	buf := new(bytes.Buffer)
+	for _, tc := range []string{
+		`{"a": 1}`,
+		`{"a": 0}`,
+	} {
+		w := httptest.NewRecorder()
+		r, err := http.NewRequest("POST", "", bytes.NewBuffer([]byte(tc)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		fmt.Fprintf(buf, "---\n")
+		fmt.Fprintf(buf, "payload: %s\n", tc)
+		n := bind.JSON(testValidator{}, bind.Validate())(func(w http.ResponseWriter, r *http.Request) {
+			data, err := bind.Get(r)
+			fmt.Fprintf(buf, "data: %#v\n", data)
+			fmt.Fprintf(buf, "error: %+v\n", err)
+		})
+		n(w, r)
+	}
+	goldie.Assert(t, "bind-validate", buf.Bytes())
 }

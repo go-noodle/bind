@@ -9,8 +9,8 @@ import (
 
 // Form constructs middleware that parses request form according to provided model
 // and injects parsed object into context
-func Form(model interface{}) noodle.Middleware {
-	return Generic(model, formC)
+func Form(model interface{}, opts ...Option) noodle.Middleware {
+	return Generic(model, formC, opts...)
 }
 
 func formC(r *http.Request) Decoder {

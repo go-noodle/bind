@@ -26,7 +26,7 @@ type Decoder interface {
 
 // Generic is a middleware factory for request binding.
 // Accepts Constructor and returns binder for model
-func Generic(model interface{}, dc Constructor) noodle.Middleware {
+func Generic(model interface{}, dc Constructor, opts ...Option) noodle.Middleware {
 	typeModel := reflect.TypeOf(model)
 	if typeModel.Kind() == reflect.Ptr {
 		typeModel = typeModel.Elem()
@@ -37,6 +37,11 @@ func Generic(model interface{}, dc Constructor) noodle.Middleware {
 			err := dc(r).Decode(val)
 			if err != nil {
 				err = DecodeError{err}
+			}
+			for _, opt := range opts {
+				if err = opt(val, err); err != nil {
+					break
+				}
 			}
 			next(w, noodle.WithValue(r, bindKey, decoderResult{val, err}))
 		}

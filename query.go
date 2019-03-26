@@ -12,8 +12,8 @@ var DefaultDecoder = schema.NewDecoder()
 
 // Query constructs middleware that parses request query  according to provided model
 // and injects parsed object into context
-func Query(model interface{}) noodle.Middleware {
-	return Generic(model, schemaC)
+func Query(model interface{}, opts ...Option) noodle.Middleware {
+	return Generic(model, schemaC, opts...)
 }
 
 type schemaDecoder http.Request

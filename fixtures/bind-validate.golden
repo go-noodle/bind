@@ -1,0 +1,8 @@
+---
+payload: {"a": 1}
+data: &bind_test.testValidator{A:1}
+error: <nil>
+---
+payload: {"a": 0}
+data: &bind_test.testValidator{A:0}
+error: invalid value
